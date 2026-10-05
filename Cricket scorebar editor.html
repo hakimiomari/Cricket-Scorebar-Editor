@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cricket scorebar editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --ink:#e8ecf6; --mute:#9aa6c4; --panel:#232c45; --panel2:#1b2339; --line:#334066;
+    --accent:#2f6fe0; --accent-ink:#ffffff; --page:#161d31;
+    --ui:"Barlow","Helvetica Neue",Arial,sans-serif;
+    --bar:"Barlow Semi Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  :root[data-theme="light"]{ --page:#161d31; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --page:#161d31; } }
+  :root[data-theme="dark"]{ --page:#161d31; }
+  html{ scroll-padding-top:env(safe-area-inset-top,0px); }
+  *,*::before,*::after{ box-sizing:inherit; }
+  body{ margin:0; background:var(--page); color:var(--ink); font:15px/1.45 var(--ui); }
+
+  header{ display:flex; align-items:center; gap:14px; padding:18px 24px 10px; flex-wrap:wrap; }
+  header h1{ font:700 22px/1 var(--bar); letter-spacing:.3px; margin:0 auto 0 0; }
+  .btn{ font:600 14px var(--ui); color:var(--ink); background:var(--panel); border:1px solid var(--line);
+        border-radius:8px; padding:9px 14px; cursor:pointer; }
+  .btn:hover{ border-color:var(--accent); }
+  .btn.primary{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .btn:focus-visible, input:focus-visible, select:focus-visible{ outline:2px solid #7fa6ff; outline-offset:2px; }
+  .btn:disabled{ opacity:.5; cursor:default; }
+  #status{ font-size:13px; color:var(--mute); min-height:1em; }
+
+  /* ---------- stage ---------- */
+  .stage{ margin:8px 24px 0; border-radius:12px; padding:28px 20px; overflow:hidden; background:#1bd91b; }
+  .fitbox{ margin:0 auto; max-width:1200px; }
+  .fit{ transform-origin:top left; width:1200px; }
+
+  /* ---------- the scorebar (1200 wide) ---------- */
+  .bar{ width:1200px; position:relative; font-family:var(--bar); color:#10325a; }
+  .main{ height:96px; display:flex; border-radius:7px; overflow:hidden; position:relative;
+         background:linear-gradient(#edf2f6,#cfdae4); box-shadow:0 6px 14px rgba(0,0,0,.35); }
+  .main::after{ content:""; position:absolute; left:0; right:0; top:0; height:40%; pointer-events:none;
+         background:linear-gradient(rgba(255,255,255,.35),rgba(255,255,255,0)); }
+  .seg{ position:relative; height:100%; display:flex; flex-direction:column; justify-content:center; flex:0 0 auto; }
+
+  /* left team block */
+  .seg.team{ padding:0 26px 0 24px; min-width:380px; color:#fff; gap:6px; }
+  .seg.team .bg{ position:absolute; inset:0 -22px 0 0; transform:skewX(-12deg); transform-origin:bottom; border-radius:0 0 0 7px; }
+  .seg.team .in{ position:relative; z-index:1; display:flex; align-items:center; gap:12px; line-height:1; }
+  .seg.team .opp{ font-weight:600; font-size:30px; opacity:.92; }
+  .seg.team .box{ background:#fff; color:#0b1f3a; border-radius:4px; padding:4px 10px 5px; font-weight:800; font-size:36px;
+         display:flex; gap:12px; box-shadow:0 2px 4px rgba(0,0,0,.35); }
+  .seg.team .box .bt{ font-weight:700; }
+  .seg.team .ov{ font-weight:700; font-size:30px; }
+  .seg.team .line2{ font-weight:700; font-size:21px; letter-spacing:.4px; display:flex; gap:16px; flex-wrap:nowrap; }
+  .seg.team .line2 b{ font-weight:800; font-size:23px; margin-left:6px; }
+  .seg.team .line2 .sep{ opacity:.6; }
+  .flags{ display:flex; gap:8px; margin-right:6px; }
+  .flagframe{ width:52px; height:34px; overflow:hidden; border-radius:3px; box-shadow:0 1px 3px rgba(0,0,0,.45); background:#222; position:relative; }
+  .flagframe > *{ width:100%; height:100%; position:absolute; inset:0; }
+  .flagframe img{ object-fit:cover; }
+  .flag-india{ background:linear-gradient(#ff9933 0 33.3%,#ffffff 33.3% 66.6%,#138808 66.6%); display:flex; align-items:center; justify-content:center; }
+  .flag-india svg{ width:12px; height:12px; }
+  .flag-mono{ display:flex; align-items:center; justify-content:center; font:800 15px var(--bar); letter-spacing:1px; }
+
+  /* batters */
+  .seg.batters{ flex:1 1 auto; padding:0 22px 0 18px; gap:7px; }
+  .brow{ display:flex; align-items:center; font-size:24px; font-weight:700; line-height:1; }
+  .brow .arrow{ width:16px; height:16px; margin-right:6px; flex:0 0 auto; }
+  .brow .arrow svg{ display:block; width:16px; height:16px; }
+  .brow:not(.on) .arrow{ visibility:hidden; }
+  .brow .bn{ flex:1; letter-spacing:.3px; }
+  .brow .br{ font-weight:800; font-size:26px; }
+  .brow .bb{ font-weight:600; font-size:18px; margin-left:10px; min-width:34px; text-align:right; color:#2a4a72; }
+
+  /* bowler */
+  .seg.bowler{ width:330px; padding:0 22px 0 20px; gap:7px; border-left:2px solid rgba(16,50,90,.5); }
+  .seg.bowler .brow .bb{ color:#2a4a72; }
+  .balls{ display:flex; gap:5px; }
+  .ball{ width:26px; height:26px; border:2px solid #10325a; border-radius:3px; display:flex; align-items:center; justify-content:center;
+         font-weight:800; font-size:17px; line-height:1; background:#fff; }
+  .ball.dot{ border-radius:50%; }
+  .ball.dot::after{ content:""; width:8px; height:8px; border-radius:50%; background:#10325a; }
+  .ball.w{ background:#c8102e; border-color:#c8102e; color:#fff; }
+  .ball.x{ background:#10325a; color:#fff; font-size:12px; }
+  .ball.four{ background:#1b7fb5; border-color:#1b7fb5; color:#fff; }
+  .ball.six{ background:#0f8a4b; border-color:#0f8a4b; color:#fff; }
+
+  /* optional strip */
+  .bottom{ margin:0 16px; height:38px; border-radius:0 0 12px 12px; display:flex; align-items:center; color:#fff;
+         font-weight:700; font-size:20px; letter-spacing:.3px; box-shadow:0 6px 12px rgba(0,0,0,.35); }
+  .bottom .l{ width:340px; text-align:center; } .bottom .c{ flex:1; text-align:center; } .bottom .r{ width:170px; text-align:center; }
+  .bottom .vs{ opacity:.75; font-weight:600; }
+  [hidden]{ display:none !important; }
+
+  /* ---------- editor ---------- */
+  .editor{ display:grid; gap:14px; padding:18px 24px 40px; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); }
+  fieldset{ border:1px solid var(--line); background:var(--panel2); border-radius:10px; padding:12px 14px 14px; margin:0; min-width:0; }
+  legend{ font:700 16px var(--bar); padding:0 6px; color:var(--ink); display:flex; align-items:center; gap:8px; }
+  legend input{ margin:0; }
+  .row{ display:grid; grid-template-columns:112px 1fr; gap:8px 10px; align-items:center; margin-top:8px; }
+  .row label{ color:var(--mute); font-size:13px; }
+  .row .two{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .row .chk{ display:flex; align-items:center; gap:8px; color:var(--ink); font-size:14px; }
+  input[type=text], select{ width:100%; font:500 14px var(--ui); color:var(--ink); background:var(--panel);
+        border:1px solid var(--line); border-radius:7px; padding:7px 9px; }
+  input[type=color]{ width:44px; height:32px; border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:2px; }
+  input[type=file]{ font-size:12px; color:var(--mute); max-width:100%; }
+  .inline{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .hint{ color:var(--mute); font-size:12px; margin:8px 0 0; }
+  .export-host{ position:fixed; left:-6000px; top:0; }
+  .export-wrap{ padding:18px; width:1236px; }
+  @media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Cricket scorebar</h1>
+  <span id="status"></span>
+  <button class="btn" id="copyBtn" type="button">Copy image</button>
+  <button class="btn primary" id="dlBtn" type="button">Download PNG</button>
+</header>
+
+<section class="stage" id="stage">
+  <div class="fitbox" id="fitbox">
+    <div class="fit" id="fit">
+      <div class="bar" id="bar">
+        <div class="main">
+          <div class="seg team"><div class="bg" id="teamBg"></div>
+            <div class="in">
+              <div class="flags" id="flags"><div class="flagframe" id="flagB"></div><div class="flagframe" id="flagA"></div></div>
+              <span class="opp"><span id="nameB"></span> v</span>
+              <span class="box"><span class="bt" id="nameA"></span><span id="scoreA"></span></span>
+              <span class="ov" id="oversA"></span>
+            </div>
+            <div class="in line2" id="line2">
+              <span id="crrWrap"><span id="crrLabel"></span><b id="crrVal"></b></span>
+              <span class="sep" id="sep">|</span>
+              <span id="reqWrap"><span id="reqLabel"></span><b id="reqVal"></b></span>
+            </div>
+          </div>
+          <div class="seg batters">
+            <div class="brow" id="b0"><span class="arrow"><svg viewBox="0 0 16 16"><path d="M2 1 L14 8 L2 15 Z" fill="#10325a"/></svg></span><span class="bn"></span><span class="br"></span><span class="bb"></span></div>
+            <div class="brow" id="b1"><span class="arrow"><svg viewBox="0 0 16 16"><path d="M2 1 L14 8 L2 15 Z" fill="#10325a"/></svg></span><span class="bn"></span><span class="br"></span><span class="bb"></span></div>
+          </div>
+          <div class="seg bowler" id="bowlerSeg">
+            <div class="brow"><span class="bn" id="bowlName"></span><span class="br" id="bowlFig"></span><span class="bb" id="bowlOv"></span></div>
+            <div class="brow"><span class="bn" id="overLabel"></span><span class="balls" id="balls"></span></div>
+          </div>
+        </div>
+        <div class="bottom" id="strip">
+          <div class="l" id="stripL"></div><div class="c" id="stripC"></div><div class="r" id="stripR"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="editor">
+  <fieldset>
+    <legend>Batting team</legend>
+    <div class="row">
+      <label for="a_name">Short name</label><input type="text" id="a_name" data-k="a.name">
+      <label for="a_score">Score</label><div class="two"><input type="text" id="a_score" data-k="a.score" placeholder="128-1"><input type="text" data-k="a.overs" placeholder="15.2" aria-label="Overs"></div>
+      <label for="a_color">Block color</label><div class="inline"><input type="color" id="a_color" data-k="a.color"></div>
+      <label for="a_flag">Flag</label><select id="a_flag" data-k="a.flag">
+        <option value="india">India tricolor</option><option value="mono">Solid block with initials</option><option value="image">Uploaded image</option></select>
+      <label for="a_img">Upload flag</label><input type="file" id="a_img" accept="image/*" data-img="a">
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Bowling team</legend>
+    <div class="row">
+      <label for="b_name">Short name</label><input type="text" id="b_name" data-k="b.name">
+      <label for="b_flag">Flag</label><select id="b_flag" data-k="b.flag">
+        <option value="india">India tricolor</option><option value="mono">Solid block with initials</option><option value="image">Uploaded image</option></select>
+      <label for="b_img">Upload flag</label><input type="file" id="b_img" accept="image/*" data-img="b">
+      <label for="b_color">Initials color</label><div class="inline"><input type="color" id="b_color" data-k="b.color"></div>
+      <label>Flags</label><label class="chk"><input type="checkbox" data-k="showFlags"> Show flags in the bar</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Second line</legend>
+    <div class="row">
+      <label>Run rate</label><label class="chk"><input type="checkbox" data-k="crr.show"> Show current run rate</label>
+      <label for="crr_l">Label / value</label><div class="two"><input type="text" id="crr_l" data-k="crr.label"><input type="text" data-k="crr.value" placeholder="8.35" aria-label="Run rate value"></div>
+      <label>Required</label><label class="chk"><input type="checkbox" data-k="req.show"> Show runs required</label>
+      <label for="req_l">Label / value</label><div class="two"><input type="text" id="req_l" data-k="req.label"><input type="text" data-k="req.value" placeholder="152 OFF 29" aria-label="Required value"></div>
+    </div>
+    <p class="hint">Turn both off to leave the second line empty.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Batters</legend>
+    <div class="row">
+      <label for="p0">Batter 1</label><input type="text" id="p0" data-k="bat.0.name">
+      <label>Runs / balls</label><div class="two"><input type="text" data-k="bat.0.runs" aria-label="Batter 1 runs"><input type="text" data-k="bat.0.balls" aria-label="Batter 1 balls"></div>
+      <label for="p1">Batter 2</label><input type="text" id="p1" data-k="bat.1.name">
+      <label>Runs / balls</label><div class="two"><input type="text" data-k="bat.1.runs" aria-label="Batter 2 runs"><input type="text" data-k="bat.1.balls" aria-label="Batter 2 balls"></div>
+      <label for="striker">On strike</label><select id="striker" data-k="striker"><option value="0">Batter 1</option><option value="1">Batter 2</option></select>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend><input type="checkbox" data-k="bowl.show" id="bowl_show"><label for="bowl_show">Bowler panel</label></legend>
+    <div class="row">
+      <label for="bw_n">Bowler</label><input type="text" id="bw_n" data-k="bowl.name">
+      <label>Figures / overs</label><div class="two"><input type="text" data-k="bowl.fig" placeholder="0-23" aria-label="Bowler figures"><input type="text" data-k="bowl.overs" placeholder="2.2" aria-label="Bowler overs"></div>
+      <label for="bw_l">Over label</label><input type="text" id="bw_l" data-k="bowl.label">
+      <label for="bw_o">Balls</label><input type="text" id="bw_o" data-k="bowl.over" placeholder="0 1 4 W wd 6">
+    </div>
+    <p class="hint">Type the balls separated by spaces: 0 or . for a dot, W for a wicket, wd, nb, lb, 1–6.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend><input type="checkbox" data-k="strip.show" id="strip_show"><label for="strip_show">Bottom strip</label></legend>
+    <div class="row">
+      <label for="s_l">Left</label><input type="text" id="s_l" data-k="strip.l">
+      <label for="s_c">Center</label><input type="text" id="s_c" data-k="strip.c">
+      <label for="s_r">Right</label><input type="text" id="s_r" data-k="strip.r">
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Background and export</legend>
+    <div class="row">
+      <label for="bg">Background</label><select id="bg" data-k="bg">
+        <option value="#1bd91b">Green screen</option><option value="#0000ff">Blue screen</option><option value="#000000">Black</option><option value="transparent">Transparent (PNG)</option><option value="custom">Custom color</option></select>
+      <label for="bgc">Custom color</label><div class="inline"><input type="color" id="bgc" data-k="bgCustom"></div>
+      <label for="scale">Resolution</label><select id="scale" data-k="scale">
+        <option value="1">1× (1236 px wide)</option><option value="2">2× (2472 px wide)</option><option value="3">3× (3708 px wide)</option></select>
+    </div>
+    <p class="hint">Uploaded flags stay in this page only; nothing is sent anywhere.</p>
+    <div class="inline" style="margin-top:10px"><button class="btn" id="resetBtn" type="button">Reset to sample</button></div>
+  </fieldset>
+</section>
+
+<div class="export-host" id="exportHost" aria-hidden="true"></div>
+
+<script>
+(function(){
+  const sample = () => ({
+    a:{ name:'IND', score:'128-1', overs:'15.2', color:'#1b7fb5', flag:'india', img:null },
+    b:{ name:'WI', color:'#8a1538', flag:'mono', img:null },
+    showFlags:false,
+    crr:{ show:true, label:'CURRENT RUN RATE', value:'8.35' },
+    req:{ show:false, label:'NEED', value:'152 OFF 29' },
+    bat:[ {name:'KOHLI', runs:'41', balls:'29'}, {name:'RAHANE', runs:'40', balls:'34'} ],
+    striker:'1',
+    bowl:{ show:true, name:'RUSSELL', fig:'0-23', overs:'2.2', label:'THIS OVER', over:'0 1' },
+    strip:{ show:false, l:'INDIA vs WEST INDIES', c:'INDIA NEED 152 RUNS TO WIN', r:'T20I' },
+    bg:'#1bd91b', bgCustom:'#1bd91b', scale:'2'
+  });
+  let S = sample();
+
+  const $ = id => document.getElementById(id);
+  const get = (o,p) => p.split('.').reduce((x,k)=>x==null?x:x[k], o);
+  const set = (o,p,v) => { const ks=p.split('.'); const last=ks.pop(); const t=ks.reduce((x,k)=>x[k],o); t[last]=v; };
+  const truthy = v => v===true || v==='true';
+
+  function hexToRgb(h){ const n=parseInt(h.slice(1),16); return [n>>16&255,n>>8&255,n&255]; }
+  function mix(h, t, amt){ const [r,g,b]=hexToRgb(h); const f=(x)=>Math.round(x+(t-x)*amt); return `rgb(${f(r)},${f(g)},${f(b)})`; }
+  function textOn(h){ const [r,g,b]=hexToRgb(h); return (r*299+g*587+b*114)/1000 > 150 ? '#1a2550' : '#ffffff'; }
+
+  function chakra(){
+    let s='<svg viewBox="-12 -12 24 24" xmlns="http://www.w3.org/2000/svg"><circle r="10.5" fill="none" stroke="#1d3f8a" stroke-width="1.6"/><circle r="1.6" fill="#1d3f8a"/>';
+    for(let i=0;i<24;i++){ const a=i*Math.PI/12; s+=`<line x1="0" y1="0" x2="${(10*Math.cos(a)).toFixed(2)}" y2="${(10*Math.sin(a)).toFixed(2)}" stroke="#1d3f8a" stroke-width="0.8"/>`; }
+    return s+'</svg>';
+  }
+  function renderFlag(el, team){
+    el.innerHTML='';
+    if(team.flag==='image' && team.img){ const im=document.createElement('img'); im.src=team.img; im.alt=''; el.appendChild(im); }
+    else if(team.flag==='india'){ const d=document.createElement('div'); d.className='flag-india'; d.innerHTML=chakra(); el.appendChild(d); }
+    else { const d=document.createElement('div'); d.className='flag-mono';
+      d.style.background=`linear-gradient(135deg, ${mix(team.color,255,.18)}, ${mix(team.color,0,.3)})`; d.style.color=textOn(team.color);
+      d.textContent=(team.name||'').replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase(); el.appendChild(d); }
+  }
+
+  function ballEl(tok){
+    const b=document.createElement('span'); b.className='ball'; const t=tok.trim(); const u=t.toUpperCase();
+    if(t==='0'||t==='.'){ b.classList.add('dot'); }
+    else if(u==='W'){ b.classList.add('w'); b.textContent='W'; }
+    else if(/^(WD|NB|LB|B|RO)$/.test(u)){ b.classList.add('x'); b.textContent=u.toLowerCase(); }
+    else if(t==='4'){ b.classList.add('four'); b.textContent='4'; }
+    else if(t==='6'){ b.classList.add('six'); b.textContent='6'; }
+    else b.textContent=t;
+    return b;
+  }
+
+  function render(){
+    const c=S.a.color;
+    $('teamBg').style.background=`linear-gradient(${mix(c,255,.12)}, ${mix(c,0,.2)})`;
+    $('nameA').textContent=S.a.name; $('scoreA').textContent=S.a.score; $('oversA').textContent=S.a.overs; $('nameB').textContent=S.b.name;
+    $('flags').hidden=!truthy(S.showFlags); renderFlag($('flagA'), S.a); renderFlag($('flagB'), S.b);
+
+    const cs=truthy(S.crr.show), rs=truthy(S.req.show);
+    $('crrWrap').hidden=!cs; $('reqWrap').hidden=!rs; $('sep').hidden=!(cs&&rs); $('line2').hidden=!(cs||rs);
+    $('crrLabel').textContent=S.crr.label; $('crrVal').textContent=S.crr.value;
+    $('reqLabel').textContent=S.req.label; $('reqVal').textContent=S.req.value;
+
+    S.bat.forEach((p,i)=>{ const r=$('b'+i); r.classList.toggle('on', String(i)===String(S.striker));
+      r.querySelector('.bn').textContent=p.name; r.querySelector('.br').textContent=p.runs; r.querySelector('.bb').textContent=p.balls; });
+
+    $('bowlerSeg').hidden=!truthy(S.bowl.show);
+    $('bowlName').textContent=S.bowl.name; $('bowlFig').textContent=S.bowl.fig; $('bowlOv').textContent=S.bowl.overs; $('overLabel').textContent=S.bowl.label;
+    const balls=$('balls'); balls.innerHTML=''; S.bowl.over.split(/\s+/).filter(Boolean).slice(0,10).forEach(t=>balls.appendChild(ballEl(t)));
+
+    const strip=$('strip'); strip.hidden=!truthy(S.strip.show);
+    strip.style.background=`linear-gradient(${mix(c,0,.1)}, ${mix(c,0,.4)})`;
+    const l=$('stripL'); l.innerHTML=''; S.strip.l.split(/(\bvs\b)/i).forEach(part=>{
+      if(/^vs$/i.test(part)){ const s=document.createElement('span'); s.className='vs'; s.textContent=part; l.appendChild(s); }
+      else l.appendChild(document.createTextNode(part)); });
+    $('stripC').textContent=S.strip.c; $('stripR').textContent=S.strip.r;
+
+    const bg = S.bg==='custom' ? S.bgCustom : S.bg;
+    $('stage').style.background = bg==='transparent' ? 'repeating-conic-gradient(#2a3350 0 25%, #1f273d 0 50%) 0 0 / 24px 24px' : bg;
+    fitPreview();
+  }
+
+  function fill(){
+    document.querySelectorAll('[data-k]').forEach(el=>{
+      const v=get(S, el.dataset.k);
+      if(el.type==='checkbox') el.checked=truthy(v); else el.value = v ?? '';
+    });
+    $('bgc').disabled = S.bg!=='custom';
+  }
+  document.querySelectorAll('[data-k]').forEach(el=>{
+    el.addEventListener('input', ()=>{ set(S, el.dataset.k, el.type==='checkbox'?el.checked:el.value); if(el.id==='bg') $('bgc').disabled = S.bg!=='custom'; render(); });
+  });
+  document.querySelectorAll('input[type=file][data-img]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const f=inp.files && inp.files[0]; if(!f) return;
+      const rd=new FileReader();
+      rd.onload=()=>{ S[inp.dataset.img].img=rd.result; S[inp.dataset.img].flag='image'; S.showFlags=true; fill(); render(); };
+      rd.readAsDataURL(f);
+    });
+  });
+  $('resetBtn').addEventListener('click', ()=>{ S=sample(); fill(); render(); say('Sample restored.'); });
+
+  function fitPreview(){
+    const w=$('fitbox').clientWidth; const k=Math.min(1, w/1200); const h=$('bar').offsetHeight;
+    $('fit').style.transform=`scale(${k})`; $('fit').style.height=(h*k)+'px';
+  }
+  window.addEventListener('resize', fitPreview);
+  function say(t){ $('status').textContent=t; }
+
+  async function renderCanvas(){
+    const host=$('exportHost'); host.innerHTML='';
+    const wrap=document.createElement('div'); wrap.className='export-wrap';
+    wrap.appendChild($('bar').cloneNode(true)); host.appendChild(wrap);
+    const bg = S.bg==='custom' ? S.bgCustom : S.bg;
+    try{ await document.fonts.ready; }catch(e){}
+    const canvas = await html2canvas(wrap, { backgroundColor: bg==='transparent'?null:bg, scale:Number(S.scale)||2, logging:false });
+    host.innerHTML=''; return canvas;
+  }
+  const toBlob = c => new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('blob')),'image/png'));
+  const dlReady = (window.claude && typeof window.claude.use==='function') ? window.claude.use('downloads').catch(()=>null) : Promise.resolve(null);
+
+  $('dlBtn').addEventListener('click', async ()=>{
+    const btn=$('dlBtn'); btn.disabled=true; say('Rendering…');
+    try{
+      const blob=await toBlob(await renderCanvas());
+      const name=`scorebar-${(S.a.name||'A').toLowerCase()}-vs-${(S.b.name||'B').toLowerCase()}.png`.replace(/\s+/g,'-');
+      const dl=await dlReady;
+      if(dl){ try{ await dl.save({filename:name, data:blob}); say('Saved.'); }
+              catch(e){ say(e && e.code==='declined' ? 'Download cancelled.' : 'Could not save the file here.'); } }
+      else { const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name;
+             document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); say('Downloaded.'); }
+    }catch(e){ say('Rendering failed. Try a smaller resolution.'); }
+    btn.disabled=false;
+  });
+  $('copyBtn').addEventListener('click', async ()=>{
+    const btn=$('copyBtn'); btn.disabled=true; say('Rendering…');
+    try{ const blob=await toBlob(await renderCanvas());
+      if(navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]); say('Image copied to clipboard.'); }
+      else say('Clipboard images are not supported in this browser. Use Download PNG.');
+    }catch(e){ say('Copy was blocked here. Use Download PNG instead.'); }
+    btn.disabled=false;
+  });
+
+  fill(); render();
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitPreview);
+})();
+</script>
+</body>
+</html>
