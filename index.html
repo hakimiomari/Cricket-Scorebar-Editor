@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cricket graphics studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=Noto+Sans+Arabic:wght@500;700;800;900&family=Noto+Kufi+Arabic:wght@600;700;800;900&family=Noto+Naskh+Arabic:wght@600;700&family=Lalezar&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/scorebar.css">
+<link rel="stylesheet" href="css/posters.css">
+</head>
+<body>
+
+<header>
+  <h1>Cricket graphics</h1>
+  <nav class="tabs" id="tabs" aria-label="Graphic type"></nav>
+  <span id="status" role="status"></span>
+  <button class="btn" id="copyBtn" type="button">Copy image</button>
+  <button class="btn primary" id="dlBtn" type="button">Download PNG</button>
+</header>
+
+<main id="sections"></main>
+
+<div class="export-host" id="exportHost" aria-hidden="true"></div>
+
+<script src="js/core.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/flags.js"></script>
+<script src="js/poster-common.js"></script>
+<script src="js/scorebar.js"></script>
+<script src="js/match-poster.js"></script>
+<script src="js/squad-poster.js"></script>
+<script src="js/victory-poster.js"></script>
+<script src="js/live-poster.js"></script>
+<script>App.start();</script>
+</body>
+</html>

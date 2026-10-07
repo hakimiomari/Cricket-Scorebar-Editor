@@ -1,0 +1,86 @@
+/* ---------- editor UI ---------- */
+:root{
+  --ink:#e8ecf6; --mute:#9aa6c4; --panel:#232c45; --panel2:#1b2339; --line:#334066;
+  --accent:#2f6fe0; --accent-ink:#ffffff; --page:#161d31;
+  --ui:"Barlow","Helvetica Neue",Arial,sans-serif;
+  --bar:"Barlow Semi Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{ box-sizing:inherit; }
+body{ margin:0; background:var(--page); color:var(--ink); font:15px/1.45 var(--ui); }
+
+header{ display:flex; align-items:center; gap:10px; padding:12px 24px 10px; flex-wrap:wrap;
+        position:sticky; top:0; z-index:5; background:var(--page); border-bottom:1px solid var(--line); }
+header h1{ font:700 22px/1 var(--bar); letter-spacing:.3px; margin:0 14px 0 0; }
+.tabs{ display:flex; gap:4px; flex-wrap:wrap; margin-right:auto; }
+.tab{ font:600 14px var(--ui); color:var(--mute); background:transparent; border:1px solid transparent;
+      border-radius:8px; padding:8px 12px; cursor:pointer; }
+.tab:hover{ color:var(--ink); border-color:var(--line); }
+.tab.on{ color:var(--ink); background:var(--panel); border-color:var(--line); }
+.btn{ font:600 14px var(--ui); color:var(--ink); background:var(--panel); border:1px solid var(--line);
+      border-radius:8px; padding:9px 14px; cursor:pointer; }
+.btn:hover{ border-color:var(--accent); }
+.btn.primary{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+.btn.mini{ padding:6px 10px; font-size:13px; }
+.btn:disabled{ opacity:.5; cursor:default; }
+.file-btn{ display:inline-block; }
+.btn:focus-visible, .tab:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{ outline:2px solid #7fa6ff; outline-offset:2px; }
+#status{ font-size:13px; color:var(--mute); min-height:1em; }
+
+/* ---------- stage ---------- */
+.sec[hidden]{ display:none; }
+.stage{ margin:12px 24px 0; border-radius:12px; padding:24px 20px; overflow:hidden;
+        background:repeating-conic-gradient(#2a3350 0 25%, #1f273d 0 50%) 0 0 / 24px 24px; }
+.fitbox{ margin:0 auto; max-width:1536px; position:relative; }
+.fit{ transform-origin:top left; }
+.caption{ margin:6px 24px 0; font-size:12px; color:var(--mute); text-align:right; }
+
+/* ---------- editor ---------- */
+.editor{ display:grid; gap:14px; padding:14px 24px 40px; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); }
+fieldset{ border:1px solid var(--line); background:var(--panel2); border-radius:10px; padding:12px 14px 14px; margin:0; min-width:0; }
+fieldset.wide{ grid-column:1 / -1; }
+legend{ font:700 16px var(--bar); padding:0 6px; color:var(--ink); display:flex; align-items:center; gap:8px; }
+legend input{ margin:0; }
+.row{ display:grid; grid-template-columns:118px 1fr; gap:8px 10px; align-items:center; margin-top:8px; }
+.row label{ color:var(--mute); font-size:13px; }
+.row .two{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.row .chk{ display:flex; align-items:center; gap:8px; color:var(--ink); font-size:14px; }
+.row .hint{ grid-column:1 / -1; }
+input[type=text], textarea, select{ width:100%; font:500 14px var(--ui); color:var(--ink); background:var(--panel);
+      border:1px solid var(--line); border-radius:7px; padding:7px 9px; }
+textarea{ resize:vertical; min-height:90px; line-height:1.7; }
+input[type=color]{ width:44px; height:32px; border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:2px; }
+input[type=file]{ font-size:12px; color:var(--mute); max-width:100%; min-width:0; flex:1; }
+input[type=range]{ flex:1; min-width:80px; accent-color:var(--accent); }
+.range output{ font-size:12px; color:var(--mute); min-width:34px; text-align:right; }
+.inline{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; min-width:0; }
+.hint{ color:var(--mute); font-size:12px; margin:8px 0 0; }
+.export-host{ position:fixed; left:-20000px; top:0; }
+[hidden]{ display:none !important; }
+@media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
+@media (max-width:640px){ .row{ grid-template-columns:1fr; } .stage{ margin:10px 12px 0; padding:14px 10px; } .editor{ padding:12px 12px 32px; } }
+
+/* ---------- shared flag renderer ---------- */
+.flagfill{ position:absolute; inset:0; background-size:cover; background-position:center; background-repeat:no-repeat; }
+.flag-india{ background:linear-gradient(#ff9933 0 33.3%, #ffffff 33.3% 66.6%, #138808 66.6%); display:flex; align-items:center; justify-content:center; }
+.flag-india svg{ width:34%; height:34%; }
+.flag-pak{ background:linear-gradient(90deg, #ffffff 0 25%, #01411c 25%); }
+.flag-pak svg{ position:absolute; left:25%; top:0; width:75%; height:100%; }
+.flag-afg{ background:linear-gradient(90deg, #000000 0 33.34%, #d32011 33.34% 66.67%, #007a36 66.67%); }
+.flag-bd{ background:#006a4e; }
+.flag-bd::after{ content:""; position:absolute; width:52%; height:78%; left:19%; top:11%; border-radius:50%; background:#f42a41; }
+.flag-eng{ background:linear-gradient(#ce1124,#ce1124) center / 100% 20% no-repeat, linear-gradient(#ce1124,#ce1124) center / 20% 100% no-repeat, #ffffff; }
+.flag-mono{ display:flex; align-items:center; justify-content:center; font-family:var(--bar); font-weight:800;
+            font-size:calc(var(--flag-h,34px) * .45); letter-spacing:1px; }
+
+/* ---------- shared ball-by-ball icons ---------- */
+.ball{ --ball:26px; width:var(--ball); height:var(--ball); border:calc(var(--ball) * .08) solid #10325a; border-radius:15%;
+       display:flex; align-items:center; justify-content:center; font-family:var(--bar); font-weight:800;
+       font-size:calc(var(--ball) * .65); line-height:1; background:#ffffff; color:#10325a; flex:none; }
+.ball.dot{ border-radius:50%; }
+.ball.dot::after{ content:""; width:30%; height:30%; border-radius:50%; background:currentColor; }
+.ball.w{ background:#c8102e; border-color:#c8102e; color:#ffffff; }
+.ball.x{ background:#10325a; color:#ffffff; font-size:calc(var(--ball) * .45); }
+.ball.four{ background:#1b7fb5; border-color:#1b7fb5; color:#ffffff; }
+.ball.six{ background:#0f8a4b; border-color:#0f8a4b; color:#ffffff; }
